@@ -10,10 +10,19 @@ import UIKit
 
 class MainViewController: UIViewController {
 
+    fileprivate lazy var backImage = UIImageView(image: UIImage(named: "mainImage"))
+    
     override func viewDidLoad() {
         super.viewDidLoad()
 
         view.backgroundColor = UIColor.cyan
+        
+        backImage.frame = view.bounds
+        backImage.contentMode = .scaleAspectFill
+        backImage.clipsToBounds = true
+        view.addSubview(backImage)
+        
+        title = "标题"
     }
 
 }

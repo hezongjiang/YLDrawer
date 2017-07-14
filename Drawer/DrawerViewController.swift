@@ -50,6 +50,8 @@ public class DrawerViewController: UIViewController {
         }
     }
     
+    public var hideStatusBarWhenExpanded = false
+    
     /// 侧滑开始时，菜单视图起始的偏移量
     fileprivate let menuViewStartOffset: CGFloat = 60
     
@@ -57,23 +59,28 @@ public class DrawerViewController: UIViewController {
     fileprivate let minProportion: CGFloat = 0.8
     
     /// 侧滑菜单黑色半透明遮罩层
-    fileprivate lazy var blackCover: UIVisualEffectView = {
-        
-        let effect = UIVisualEffectView(effect: UIBlurEffect(style: .dark))
-        return effect
-    }()
+    fileprivate lazy var blackCover: UIVisualEffectView = UIVisualEffectView(effect: UIBlurEffect(style: .dark))
     
     /// 主页遮盖
-    fileprivate lazy var mainViewCover: UIButton = {
-        let button = UIButton()
-        button.backgroundColor = .clear
-        button.addTarget(self, action: #selector(handleTapGesture), for: .touchUpInside)
-        return button
+    fileprivate lazy var mainViewCover: UIVisualEffectView = {
+        
+        let effect = UIVisualEffectView(effect: UIBlurEffect(style: .dark))
+        effect.alpha = 0
+        
+        let tap = UITapGestureRecognizer(target: self, action: #selector(handleTapGesture))
+        effect.addGestureRecognizer(tap)
+        
+        return effect
     }()
     
     /// 菜单页当前状态
     fileprivate var currentState = MenuState.collapsed {
         didSet {
+            
+            UIView.animate(withDuration: 0.5) {
+                self.setNeedsStatusBarAppearanceUpdate()
+            }
+            
             // 菜单展开的时候，给主页面边缘添加阴影
             let shouldShowShadow = currentState != .collapsed
             showShadowForMainViewController(shouldShowShadow)
@@ -128,7 +135,7 @@ public class DrawerViewController: UIViewController {
                 currentState = .expanding
                 addMenuViewController()
             }
-        
+            
         case .changed: // 如果是正在滑动，则偏移主视图的坐标实现跟随手指位置移动
             let screenWidth = view.frame.width
             let halfScreenWidth = screenWidth * 0.5
@@ -141,7 +148,10 @@ public class DrawerViewController: UIViewController {
             let proportion = 1 - (1 - minProportion) * percent
             
             // 执行视差特效
-            blackCover.alpha = (proportion - minProportion) / (1 - minProportion) - coverMinAlpha
+            let alpha = (proportion - minProportion) / (1 - minProportion) - coverMinAlpha
+            blackCover.alpha = alpha
+            mainViewCover.alpha = 1 - alpha - coverMinAlpha
+            
             recognizer.view!.center.x = centerX
             recognizer.setTranslation(CGPoint.zero, in: view)
             // 缩放主页面
@@ -152,14 +162,14 @@ public class DrawerViewController: UIViewController {
             
             // 菜单视图缩放
             let menuProportion = (1 + minProportion) - proportion
-            print("百分比\(percent)")
-            print("缩放比\(menuProportion)")
+            
             leftViewController.view.transform = CGAffineTransform.identity.scaledBy(x: menuProportion, y: menuProportion)
             
         case .ended: // 如果滑动结束
             // 根据页面滑动是否过半，判断后面是自动展开还是收缩
             let hasMovedhanHalfway = recognizer.view!.center.x > view.frame.width
             animateMainView(shouldExpand: hasMovedhanHalfway)
+            
         default:
             break
         }
@@ -167,6 +177,10 @@ public class DrawerViewController: UIViewController {
     
     /// 侧滑开始时，添加菜单页
     fileprivate func addMenuViewController() {
+        
+        let mianView = mainViewController.view!
+        mainViewCover.frame = mianView.bounds
+        mianView.addSubview(mainViewCover)
         
         leftViewController.view.center.x = view.frame.width * 0.5 * (1 - (1 - minProportion) * 0.5) - menuViewStartOffset
         
@@ -182,7 +196,7 @@ public class DrawerViewController: UIViewController {
     
     /// 主页自动展开、收起动画
     ///
-    /// - Parameter shouldExpand: 是否展开
+    /// - Parameter shouldExpand: 是否展开，true:展开，false:折叠
     public func animateMainView(shouldExpand: Bool) {
         
         if (shouldExpand) { // 如果是用来展开
@@ -193,9 +207,6 @@ public class DrawerViewController: UIViewController {
             let mainPosition = view.frame.width * (1 + minProportion * 0.5) - menuViewExpandedOffset * 0.5
             doTheAnimate(mainPosition, mainProportion: minProportion, menuPosition: view.bounds.width * 0.5, menuProportion: 1, blackCoverAlpha: 0, usingSpringWithDamping: 0.6) { finished in
                 
-                let mianView = self.mainViewController.view!
-                self.mainViewCover.frame = mianView.bounds
-                mianView.addSubview(self.mainViewCover)
             }
             
         } else { // 如果是用于隐藏
@@ -225,7 +236,7 @@ public class DrawerViewController: UIViewController {
             
             self.mainViewController.view.center.x = mainPosition
             self.blackCover.alpha = blackCoverAlpha
-            
+            self.mainViewCover.alpha = 1 - blackCoverAlpha - self.coverMinAlpha
             // 缩放主页面
             //                    self.mainNavigationController.view.transform = CGAffineTransform.identity.scaledBy(x: mainProportion, y: mainProportion)
             
@@ -239,18 +250,6 @@ public class DrawerViewController: UIViewController {
         
     }
     
-    
-    
-    
-    required public init?(coder aDecoder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-    
-    override public func viewDidLoad() {
-        
-        super.viewDidLoad()
-    }
-    
     /// 给主页面边缘添加、取消阴影
     fileprivate func showShadowForMainViewController(_ shouldShowShadow: Bool) {
         
@@ -261,5 +260,27 @@ public class DrawerViewController: UIViewController {
             mainViewController.view.layer.shadowOpacity = 0
         }
     }
+    
+    public override var prefersStatusBarHidden: Bool {
+        return (currentState != .collapsed) ? hideStatusBarWhenExpanded : false
+    }
+    
+    public override var preferredStatusBarStyle: UIStatusBarStyle {
+        return (currentState != .expanded) ? .default : .lightContent
+    }
+    
+    public override var preferredStatusBarUpdateAnimation: UIStatusBarAnimation {
+        return .slide
+    }
+    
+    required public init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    override public func viewDidLoad() {
+        
+        super.viewDidLoad()
+    }
+    
     
 }

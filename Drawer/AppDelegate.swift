@@ -19,10 +19,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window = UIWindow(frame: UIScreen.main.bounds)
         
         let mainViewController = MainViewController()
+        let mainNav = UINavigationController(rootViewController: mainViewController)
         
         let leftViewController = MenuViewController()
         
-        let drawer = DrawerViewController(mainViewController: mainViewController, leftViewController: leftViewController)
+        let drawer = DrawerViewController(mainViewController: mainNav, leftViewController: leftViewController)
         drawer.backGoundImage = UIImage(named: "back")
         window?.rootViewController = drawer
         
