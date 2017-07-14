@@ -33,7 +33,7 @@ public class DrawerViewController: UIViewController {
     fileprivate let leftViewController: UIViewController
     
     /// 菜单打开后主页在屏幕右侧露出部分的宽度
-    public var menuViewExpandedOffset: CGFloat = 60
+    public var menuViewExpandedOffset: CGFloat = 100
     
     /// 菜单黑色半透明遮罩层最小透明度(0 ~ 1)
     public var coverMinAlpha: CGFloat = 0.1
@@ -101,7 +101,7 @@ public class DrawerViewController: UIViewController {
         // 添加左侧视图
         let leftView = leftViewController.view!
         view.backgroundColor = leftView.backgroundColor
-        leftView.frame = CGRect(x: 0, y: 0, width: view.frame.width - menuViewExpandedOffset, height: view.frame.height)
+        leftView.frame = view.bounds
         addChildViewController(leftViewController)
     }
     
@@ -137,7 +137,7 @@ public class DrawerViewController: UIViewController {
             if centerX < halfScreenWidth { centerX = halfScreenWidth }
             
             // 计算缩放比例
-            let percent: CGFloat = (centerX - halfScreenWidth) / screenWidth
+            let percent: CGFloat = (centerX - halfScreenWidth) / (screenWidth - menuViewExpandedOffset)
             let proportion = 1 - (1 - minProportion) * percent
             
             // 执行视差特效
@@ -146,19 +146,15 @@ public class DrawerViewController: UIViewController {
             recognizer.setTranslation(CGPoint.zero, in: view)
             // 缩放主页面
             //            recognizer.view!.transform = CGAffineTransform.identity.scaledBy(x: proportion, y: proportion)
-            print(percent)
             
-            if leftViewController.view.frame.origin.x > 0  {
-                leftViewController.view.frame.origin.x = 0
-                break
-            }
-            leftViewController.view.frame.origin.x = menuViewStartOffset * (percent - 1)
             // 菜单视图移动
-//            leftViewController.view.center.x = halfScreenWidth - menuViewStartOffset * (1 - percent)
+            leftViewController.view.center.x = halfScreenWidth - menuViewStartOffset * (1 - percent)
             
             // 菜单视图缩放
             let menuProportion = (1 + minProportion) - proportion
-//            leftViewController.view.transform = CGAffineTransform.identity.scaledBy(x: menuProportion, y: menuProportion)
+            print("百分比\(percent)")
+            print("缩放比\(menuProportion)")
+            leftViewController.view.transform = CGAffineTransform.identity.scaledBy(x: menuProportion, y: menuProportion)
             
         case .ended: // 如果滑动结束
             // 根据页面滑动是否过半，判断后面是自动展开还是收缩
@@ -172,10 +168,9 @@ public class DrawerViewController: UIViewController {
     /// 侧滑开始时，添加菜单页
     fileprivate func addMenuViewController() {
         
-//        leftViewController.view.center.x = view.frame.width * 0.5 * (1 - (1 - minProportion) * 0.5) - menuViewStartOffset
-        leftViewController.view.frame.origin.x = -menuViewStartOffset
+        leftViewController.view.center.x = view.frame.width * 0.5 * (1 - (1 - minProportion) * 0.5) - menuViewStartOffset
         
-//        leftViewController.view.transform = CGAffineTransform.identity.scaledBy(x: minProportion, y: minProportion)
+        leftViewController.view.transform = CGAffineTransform.identity.scaledBy(x: minProportion, y: minProportion)
         
         // 插入当前视图并置顶
         view.insertSubview(leftViewController.view, belowSubview: mainViewController.view)
@@ -195,8 +190,8 @@ public class DrawerViewController: UIViewController {
             // 更新当前状态
             currentState = .expanded
             // 动画
-            let mainPosition = view.frame.width * (1 + minProportion * 0.5) - menuViewExpandedOffset
-            doTheAnimate(mainPosition, mainProportion: minProportion, menuPosition: view.bounds.size.width/2, menuProportion: 1, blackCoverAlpha: 0, usingSpringWithDamping: 0.6) { finished in
+            let mainPosition = view.frame.width * (1 + minProportion * 0.5) - menuViewExpandedOffset * 0.5
+            doTheAnimate(mainPosition, mainProportion: minProportion, menuPosition: view.bounds.width * 0.5, menuProportion: 1, blackCoverAlpha: 0, usingSpringWithDamping: 0.6) { finished in
                 
                 let mianView = self.mainViewController.view!
                 self.mainViewCover.frame = mianView.bounds
@@ -207,7 +202,7 @@ public class DrawerViewController: UIViewController {
             
             let menuPosition = view.frame.width * 0.5 * (1 - (1 - minProportion) * 0.5) - menuViewStartOffset
             // 动画
-            doTheAnimate(view.bounds.size.width/2, mainProportion: 1, menuPosition: menuPosition, menuProportion: minProportion, blackCoverAlpha: 1 - coverMinAlpha, usingSpringWithDamping: 1) { finished in
+            doTheAnimate(view.frame.width * 0.5, mainProportion: 1, menuPosition: menuPosition, menuProportion: minProportion, blackCoverAlpha: 1 - coverMinAlpha, usingSpringWithDamping: 1) { finished in
                 
                 // 动画结束之后更新状态
                 self.currentState = .collapsed
@@ -235,10 +230,10 @@ public class DrawerViewController: UIViewController {
             //                    self.mainNavigationController.view.transform = CGAffineTransform.identity.scaledBy(x: mainProportion, y: mainProportion)
             
             // 菜单页移动
-//            self.leftViewController.view.center.x = menuPosition
-            self.leftViewController.view.frame.origin.x = 0
+            self.leftViewController.view.center.x = menuPosition
+
             // 菜单页缩放
-//            self.leftViewController.view.transform = CGAffineTransform.identity.scaledBy(x: menuProportion, y: menuProportion)
+            self.leftViewController.view.transform = CGAffineTransform.identity.scaledBy(x: menuProportion, y: menuProportion)
             
         }, completion: completion)
         
